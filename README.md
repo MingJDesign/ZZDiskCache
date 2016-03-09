@@ -34,7 +34,7 @@ let libPath = libPaths.first
 
 ```
 //Cache目录
-let cachePaths = NSSearchPathForDirectoriesInDomains(NSSearchPathDirectory.DocumentationDirectory, NSSearchPathDomainMask.AllDomainsMask, true)
+let cachePaths = NSSearchPathForDirectoriesInDomains(NSSearchPathDirectory.CachesDirectory, NSSearchPathDomainMask.AllDomainsMask, true)
 let cachePath = cachePaths.first
 ```
 
