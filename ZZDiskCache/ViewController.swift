@@ -28,7 +28,9 @@ class ViewController: UIViewController {
             print("\(obj.id) , \(obj.name)")
          }
        }
+//        lalallalala
         
+//        .>>.。
     }
 
     override func didReceiveMemoryWarning() {
