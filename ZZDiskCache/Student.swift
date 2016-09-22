@@ -18,15 +18,15 @@ class Student: NSObject,NSCoding {
     }
     
     //MARK: -序列化
-    func encodeWithCoder(aCoder: NSCoder) {
-        aCoder.encodeObject(self.name, forKey: "name")
-        aCoder.encodeObject(self.id, forKey: "id")
+    func encode(with aCoder: NSCoder) {
+        aCoder.encode(self.name, forKey: "name")
+        aCoder.encode(self.id, forKey: "id")
     }
     
     
     //MARK: -反序列化
     required init?(coder aDecoder: NSCoder) {
-        self.id = aDecoder.decodeObjectForKey("id") as? NSNumber
-        self.name = aDecoder.decodeObjectForKey("name") as? String
+        self.id = aDecoder.decodeObject(forKey: "id") as? NSNumber
+        self.name = aDecoder.decodeObject(forKey: "name") as? String
     }
 }

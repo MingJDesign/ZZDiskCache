@@ -19,46 +19,46 @@ enum CacheFor:String{
     case Voice = "zzVoice"  //语音缓存 (缓存NSData)
 }
 
-public class ZZDiskCache {
+open class ZZDiskCache {
     
-    private let defaultCacheName = "zz_default"
-    private let cachePrex = "com.zz.zzdisk.cache."
-    private let ioQueueName = "com.zz.zzdisk.cache.ioQueue."
+    fileprivate let defaultCacheName = "zz_default"
+    fileprivate let cachePrex = "com.zz.zzdisk.cache."
+    fileprivate let ioQueueName = "com.zz.zzdisk.cache.ioQueue."
     
-    private var fileManager: NSFileManager!
-    private let ioQueue: dispatch_queue_t
+    fileprivate var fileManager: FileManager!
+    fileprivate let ioQueue: DispatchQueue
     var diskCachePath:String
     // 针对Page
-    public class var sharedCacheObj: ZZDiskCache {
+    open class var sharedCacheObj: ZZDiskCache {
         return page
     }
     
     // 针对Image
-    public class var sharedCacheImage: ZZDiskCache {
+    open class var sharedCacheImage: ZZDiskCache {
         return image
     }
     
     // 针对Voice
-    public class var sharedCacheVoice: ZZDiskCache {
+    open class var sharedCacheVoice: ZZDiskCache {
         return voice
     }
     
-    private var storeType:CacheFor
+    fileprivate var storeType:CacheFor
     
     init(type:CacheFor) {
         self.storeType = type
         let cacheName = cachePrex+type.rawValue
-        ioQueue = dispatch_queue_create(ioQueueName+type.rawValue, DISPATCH_QUEUE_SERIAL)
+        ioQueue = DispatchQueue(label: ioQueueName+type.rawValue, attributes: [])
         //获取缓存目录
-        let paths = NSSearchPathForDirectoriesInDomains(.CachesDirectory, NSSearchPathDomainMask.UserDomainMask, true)
+        let paths = NSSearchPathForDirectoriesInDomains(.cachesDirectory, FileManager.SearchPathDomainMask.userDomainMask, true)
         
-        diskCachePath = (paths.first! as NSString).stringByAppendingPathComponent(cacheName)
+        diskCachePath = (paths.first! as NSString).appendingPathComponent(cacheName)
         
-        dispatch_sync(ioQueue) { () -> Void in
-            self.fileManager = NSFileManager()
+        ioQueue.sync { () -> Void in
+            self.fileManager = FileManager()
             //先创建好对象的文件夹
             do {
-                try self.fileManager.createDirectoryAtPath(self.diskCachePath, withIntermediateDirectories: true, attributes: nil)
+                try self.fileManager.createDirectory(atPath: self.diskCachePath, withIntermediateDirectories: true, attributes: nil)
             } catch _ {}
         }
     }
@@ -73,7 +73,7 @@ public class ZZDiskCache {
      - parameter data:            data
      - parameter completeHandler: 完成回调
      */
-    public func stroe(key:String,value:AnyObject? = nil,image:UIImage?,data:NSData?,completeHandler:(()->())? = nil){
+    open func stroe(_ key:String,value:Any? = nil,image:UIImage?,data:Data?,completeHandler:(()->())? = nil){
         /**
          对象存储 归档操作后写入文件
          
@@ -82,16 +82,16 @@ public class ZZDiskCache {
          - parameter path: 路径
          - parameter completeHandler: 完成后回调
          */
-        func stroeObject(key:String,value:AnyObject?,path:String,completeHandler:(()->())? = nil){
-            dispatch_async(ioQueue){
+        func stroeObject(_ key:String,value:Any?,path:String,completeHandler:(()->())? = nil){
+            ioQueue.async{
                 let data = NSMutableData()
                 var keyArchiver:NSKeyedArchiver!
-                keyArchiver =  NSKeyedArchiver(forWritingWithMutableData: data)
-                keyArchiver.encodeObject(value, forKey: key.zz_MD5())  //对key进行MD5加密
+                keyArchiver =  NSKeyedArchiver(forWritingWith: data)
+                keyArchiver.encode(value, forKey: key.zz_MD5)  //对key进行MD5加密
                 keyArchiver.finishEncoding() //归档完毕
                 
                 do {
-                    try data.writeToFile(path, options: NSDataWritingOptions.DataWritingAtomic)  //存储
+                    try data.write(toFile: path, options: NSData.WritingOptions.atomic)  //存储
                     //完成回调
                     completeHandler?()
                 }catch let err{
@@ -108,11 +108,11 @@ public class ZZDiskCache {
          - parameter path:            路径
          - parameter completeHandler: 完成回调
          */
-        func storeImage(image:UIImage,forKey key:String,path:String,completeHandler:(()->())? = nil){
-            dispatch_async(ioQueue) {
+        func storeImage(_ image:UIImage,forKey key:String,path:String,completeHandler:(()->())? = nil){
+            ioQueue.async {
                 let data = UIImageJPEGRepresentation(image.zz_normalizedImage(), 0.9)
                 if let data = data {
-                    self.fileManager.createFileAtPath(path, contents: data, attributes: nil)
+                    self.fileManager.createFile(atPath: path, contents: data, attributes: nil)
                 }
             }
         }
@@ -125,10 +125,10 @@ public class ZZDiskCache {
          - parameter path:            路径
          - parameter completeHandler: 完成回调
          */
-        func storeVoice(data:NSData?,forKey key:String,path:String,completeHandler:(()->())? = nil){
-            dispatch_async(ioQueue) {
+        func storeVoice(_ data:Data?,forKey key:String,path:String,completeHandler:(()->())? = nil){
+            ioQueue.async {
                 if let data = data {
-                    self.fileManager.createFileAtPath(path+".ima4", contents: data, attributes: nil)
+                    self.fileManager.createFile(atPath: path+".ima4", contents: data, attributes: nil)
                 }
             }
         }
@@ -156,40 +156,40 @@ public class ZZDiskCache {
      - parameter imageGetHandler:  图像完成回调
      - parameter voiceGetHandler:  音频完成回调
      */
-    public func retrieve(key:String,objectGetHandler:((obj:AnyObject?)->())? = nil,imageGetHandler:((image:UIImage?)->())? = nil,voiceGetHandler:((data:NSData?)->())?){
+    open func retrieve(_ key:String,objectGetHandler:((_ obj:Any?)->())? = nil,imageGetHandler:((_ image:UIImage?)->())? = nil,voiceGetHandler:((_ data:Data?)->())?){
         
-        func retrieveObject(key:String,path:String,objectGetHandler:((obj:AnyObject?)->())?){
+        func retrieveObject(_ key:String,path:String,objectGetHandler:((_ obj:Any?)->())?){
             //反归档 获取
-            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)) { () -> Void in
-                if self.fileManager.fileExistsAtPath(path){
+            DispatchQueue.global().async { () -> Void in
+                if self.fileManager.fileExists(atPath: path){
                     let mdata = NSMutableData(contentsOfFile:path)
-                    let unArchiver = NSKeyedUnarchiver(forReadingWithData: mdata!)
-                    let obj = unArchiver.decodeObjectForKey(key)
-                    objectGetHandler?(obj:obj)
+                    let unArchiver = NSKeyedUnarchiver(forReadingWith: mdata! as Data)
+                    let obj = unArchiver.decodeObject(forKey: key)
+                    objectGetHandler?(obj)
                 }else{
-                    objectGetHandler?(obj:nil)
+                    objectGetHandler?(nil)
                 }
             }
         }
         
-        func retrieveImage(path:String,imageGetHandler:((image:UIImage?)->())?){
-            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)) { () -> Void in
-                if let data = NSData(contentsOfFile: path){
+        func retrieveImage(_ path:String,imageGetHandler:((_ image:UIImage?)->())?){
+            DispatchQueue.global().async { () -> Void in
+                if let data = try? Data(contentsOf: URL(fileURLWithPath: path)){
                     if let image = UIImage(data: data){
-                        imageGetHandler?(image: image)
+                        imageGetHandler?(image)
                     }
                 }else{
-                    imageGetHandler?(image: nil)
+                    imageGetHandler?(nil)
                 }
             }
         }
         
-        func retrieveVoice(path:String,voiceGetHandler:((data:NSData?)->())?){
-            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)) { () -> Void in
-                if let data = NSData(contentsOfFile: path){
-                    voiceGetHandler?(data: data)
+        func retrieveVoice(_ path:String,voiceGetHandler:((_ data:Data?)->())?){
+            DispatchQueue.global().async { () -> Void in
+                if let data = try? Data(contentsOf: URL(fileURLWithPath: path)){
+                    voiceGetHandler?(data)
                 }else{
-                    voiceGetHandler?(data: nil)
+                    voiceGetHandler?(nil)
                 }
                 
             }
@@ -199,7 +199,7 @@ public class ZZDiskCache {
         let path = self.cachePathForKey(key)
         switch storeType{
         case .Object:
-            retrieveObject(key.zz_MD5(), path: path, objectGetHandler: objectGetHandler)
+            retrieveObject(key.zz_MD5, path: path, objectGetHandler: objectGetHandler)
         case .Image:
             retrieveImage(path,imageGetHandler:imageGetHandler)
         case .Voice:
@@ -210,7 +210,7 @@ public class ZZDiskCache {
 }
 
 extension ZZDiskCache{
-    func cachePathForKey(key: String) -> String {
+    func cachePathForKey(_ key: String) -> String {
         var fileName:String = ""
         if self.storeType == CacheFor.Voice {
             fileName = cacheFileNameForKey(key)+".wav"     //对name进行MD5加密
@@ -218,11 +218,11 @@ extension ZZDiskCache{
             fileName = cacheFileNameForKey(key)
         }
         
-        return (diskCachePath as NSString).stringByAppendingPathComponent(fileName)
+        return (diskCachePath as NSString).appendingPathComponent(fileName)
     }
     
-    func cacheFileNameForKey(key: String) -> String {
-        return key.zz_MD5()
+    func cacheFileNameForKey(_ key: String) -> String {
+        return key.zz_MD5
     }
 }
 
@@ -230,16 +230,16 @@ extension ZZDiskCache{
 extension UIImage {
     
     func zz_normalizedImage() -> UIImage {
-        if imageOrientation == .Up {
+        if imageOrientation == .up {
             return self
         }
         
         UIGraphicsBeginImageContextWithOptions(size, false, scale)
-        drawInRect(CGRect(origin: CGPointZero, size: size))
+        draw(in: CGRect(origin: CGPoint.zero, size: size))
         let normalizedImage = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
         
-        return normalizedImage;
+        return normalizedImage!;
     }
 }
 
